@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+datas = [('tesseract', 'tesseract'), ('digit_model.npz', '.')]
 binaries = []
-hiddenimports = []
+hiddenimports = ['cv2', 'openpyxl', 'invoice_financial']
 tmp_ret = collect_all('ttkbootstrap')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('zxingcpp')

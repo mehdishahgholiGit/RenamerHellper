@@ -1,0 +1,9 @@
+pymupdf
+pyzbar
+zxing-cpp
+pytesseract
+pillow
+numpy
+ttkbootstrap
+opencv-python-headless
+openpyxl

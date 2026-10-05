@@ -260,6 +260,44 @@ def read_box(crop, model):
 
 
 # ------------------------------------------------------------------ names / tickets
+def _find_tesseract():
+    """Locate tesseract.exe: bundled copy first, then a typical Windows install."""
+    import sys
+    bases = []
+    if getattr(sys, "frozen", False):
+        bases.append(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)))
+        bases.append(os.path.dirname(sys.executable))
+    bases.append(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [os.path.join(b, "tesseract", "tesseract.exe") for b in bases]
+    candidates += [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def configure_tesseract():
+    """Point pytesseract at a known tesseract.exe. Returns the path or None."""
+    try:
+        import pytesseract
+    except ImportError:
+        return None
+    path = _find_tesseract()
+    if not path:
+        return None
+    pytesseract.pytesseract.tesseract_cmd = path
+    tessdata = os.path.join(os.path.dirname(path), "tessdata")
+    if os.path.isdir(tessdata):
+        os.environ.setdefault("TESSDATA_PREFIX", tessdata)
+    return path
+
+
+configure_tesseract()
+
+
 def _ocr_eng(cell):
     import pytesseract
     c = cv2.resize(cell[10:-10, 10:-10], None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
@@ -269,7 +307,10 @@ def _ocr_eng(cell):
 
 def read_name(cell):
     """Passenger name (Latin). Best-effort OCR: it is NOT covered by the totals check."""
-    t = _ocr_eng(cell).replace("|", "I")
+    try:
+        t = _ocr_eng(cell).replace("|", "I")
+    except Exception:
+        return ""
     t = re.sub(r"[^A-Za-z/.\- ]", "", t)
     return re.sub(r"\s+", " ", t).strip()
 

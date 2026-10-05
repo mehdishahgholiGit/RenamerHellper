@@ -59,11 +59,12 @@ from ttkbootstrap.constants import *
 
 try:
     from invoice_financial import (
-        DigitModel, process_folder, summarize, export_excel,
+        DigitModel, process_folder, summarize, export_excel, configure_tesseract,
     )
     HAVE_INVOICE_FINANCIAL = True
 except Exception:
     HAVE_INVOICE_FINANCIAL = False
+    configure_tesseract = None
 
 
 def get_app_path(relative_path=""):
@@ -76,21 +77,23 @@ def get_app_path(relative_path=""):
 
 
 def configure_bundled_tesseract():
-    tesseract_exe = get_app_path(
-        os.path.join("tesseract", "tesseract.exe")
-    )
+    if HAVE_INVOICE_FINANCIAL and configure_tesseract:
+        found = configure_tesseract()
+        if found:
+            return found
 
-    tessdata_dir = get_app_path(
-        os.path.join("tesseract", "tessdata")
-    )
-
-    if os.path.isfile(tesseract_exe):
-        pytesseract.pytesseract.tesseract_cmd = tesseract_exe
-
-        if os.path.isdir(tessdata_dir):
-            os.environ["TESSDATA_PREFIX"] = tessdata_dir
-
-        return tesseract_exe
+    candidates = [
+        get_app_path(os.path.join("tesseract", "tesseract.exe")),
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for tesseract_exe in candidates:
+        if tesseract_exe and os.path.isfile(tesseract_exe):
+            pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+            tessdata_dir = os.path.join(os.path.dirname(tesseract_exe), "tessdata")
+            if os.path.isdir(tessdata_dir):
+                os.environ["TESSDATA_PREFIX"] = tessdata_dir
+            return tesseract_exe
 
     return None
 
@@ -1345,8 +1348,10 @@ class InvoiceFinancialTab(tb.Frame):
             try:
                 if self.model is None:
                     self.model = DigitModel()
-                if HAVE_TESSERACT and BUNDLED_TESSERACT_PATH:
-                    pytesseract.pytesseract.tesseract_cmd = BUNDLED_TESSERACT_PATH
+                if HAVE_TESSERACT:
+                    tess = BUNDLED_TESSERACT_PATH or configure_bundled_tesseract()
+                    if tess:
+                        pytesseract.pytesseract.tesseract_cmd = tess
                 entries = process_folder(
                     folder, model=self.model,
                     progress=progress_cb,
